@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+    <meta charset="utf-8">
+    <title>WebGL Voxel Painter</title>
+    <link rel="stylesheet" href="../../base/webgl.css" type="text/css">
+    <script src="../../base/lib/cuon-matrix.js"></script>
+    <script src="../../base/lib/gl-matrix.js"></script>
+</head>
+
+<body>
+    <div style="top:0px; left:15px; width:100%; text-align:left; color:black;" class="ui">
+        <h2>WebGL Voxel Painter</h2>
+        FPS: <span id="fps">--</span><br>
+        WASD Kamerastyring.<br>
+        VB Zoom<br>
+        Styre Spiller: <br>
+       ------
+        <input style = "width: 30px" type="button" id="plusY" value = "+Y">------<br>
+        <input style = "width: 30px" type="button" id="minusX" value = "-X">
+        <input style = "width: 30px" type="button" id="addVox" value = "+">
+        <input style = "width: 30px" type="button" id="plusX" value = "+X"><br>
+        <input style = "width: 30px" type="button" id="minusZ" value = "-Z">
+        <input style = "width: 30px" type="button" id="minusY" value = "-Y">
+        <input style = "width: 30px" type="button" id="plusZ" value = "+Z"><br>
+        -------------------<br>
+
+        <b>Random Colors</b><br>
+        <label class="switch">
+            <input type="checkbox" id="randomColorsSwitch">
+            <span class="slider"></span>
+          </label><br>
+
+        <b>Tegn ved flytt</b><br>
+        <label class="switch">
+            <input type="checkbox" id="tegnVedFlytt">
+            <span class="slider"></span>
+          </label>
+         
+
+    </div>
+    <!-- BASE-SHADERS -->
+    <script id="base-vertex-shader" type="x-shader/x-vertex">
+        attribute vec3 aVertexPosition;
+        attribute vec4 aVertexColor;
+        uniform mat4 uModelViewMatrix;
+        uniform mat4 uProjectionMatrix;
+        varying lowp vec4 vColor;
+        void main(void) {
+            gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition, 1.0);
+            vColor = aVertexColor;
+            gl_PointSize = 10.0;    //Merk: Kun i bruk når man tegner POINTS
+        }
+    </script>
+    <script id="base-fragment-shader" type="x-shader/x-fragment">
+        varying lowp vec4 vColor;
+        void main(void) {
+            gl_FragColor = vColor;
+        }
+    </script>
+
+    <!-- SHADER som håndterer posisjon, farge og tekstur. -->
+    <script id="texture-vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 aVertexPosition;
+        attribute vec4 aVertexColor;
+        attribute vec2 aVertexTextureCoordinate;
+        uniform mat4 uModelViewMatrix;
+        uniform mat4 uProjectionMatrix;
+
+        varying lowp vec2 vTextureCoordinate;
+        varying lowp vec4 vColor;
+        void main() {
+            gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+            vTextureCoordinate = aVertexTextureCoordinate;
+            vColor = aVertexColor;
+            gl_PointSize = 10.0;    //Merk: Kun i bruk når man tegner POINTS
+        }
+    </script>
+    <script id="texture-fragment-shader" type="x-shader/x-fragment">
+        varying lowp vec4 vColor;
+        varying lowp vec2 vTextureCoordinate;
+        uniform sampler2D uSampler;
+        void main() {
+            gl_FragColor = texture2D(uSampler, vec2(vTextureCoordinate.s, vTextureCoordinate.t)) * vColor;
+            //gl_FragColor = texture2D(uSampler, vec2(vTextureCoordinate.s, vTextureCoordinate.t));
+        }
+    </script>
+    <!-- SHADER for posisjon - uniform farge -->
+    <script id="voxel-vertex-shader" type="x-shader/x-vertex">
+        attribute vec3 aVertexPosition;
+        uniform mat4 uModelViewMatrix;
+        uniform mat4 uProjectionMatrix;
+        void main(void) {
+            gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition, 1.0);
+            gl_PointSize = 10.0;    //Merk: Kun i bruk når man tegner POINTS
+        }
+    </script>
+    <script id="voxel-fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform lowp vec4 uFragmentColor;
+        void main(void) {
+            gl_FragColor = uFragmentColor;
+            
+        }
+    </script>
+
+    <script type="module" >
+	    //Bruker strict-mode, betyr bl.a. at variabler må deklareres før bruk, se https://www.w3schools.com/js/js_strict.asp
+	    'use strict';
+	    import {main} from "./voxelPainter.js";
+	    main();
+    </script>
+</body>
+
+</html>
