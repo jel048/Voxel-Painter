@@ -59,48 +59,104 @@
         }
     </script>
 
-    <!-- SHADER som håndterer posisjon, farge og tekstur. -->
+
+    <!-- SHADER som håndterer punktdiffust lys, posisjon og tekstur -->
     <script id="texture-vertex-shader" type="x-shader/x-vertex">
-        attribute vec4 aVertexPosition;
-        attribute vec4 aVertexColor;
+        attribute vec3 aVertexPosition;
+        attribute vec3 aVertexNormal;    //Normalvektor.
         attribute vec2 aVertexTextureCoordinate;
+
+        uniform mat4 uModelMatrix;	   //model/world-matrisa brukes til lyskalk.
+        uniform mat3 uNormalMatrix;    //Transformerer normalvektoren vha. denne.
         uniform mat4 uModelViewMatrix;
         uniform mat4 uProjectionMatrix;
 
+        uniform vec3 uLightPosition;    //Lysets posisjon.
+        uniform vec3 uAmbientLightColor;
+        uniform vec3 uDiffuseLightColor;
+
         varying lowp vec2 vTextureCoordinate;
-        varying lowp vec4 vColor;
+        varying vec3 vLightWeighting;
+
         void main() {
-            gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+            //Transformer til world-koordinater:
+            vec4 vertexPosition = uModelMatrix * vec4(aVertexPosition, 1.0);
+
+            //Beregn vektoren fra denne verteksen til lyskilden:
+            vec3 vectorToLightSource = normalize(uLightPosition - vec3(vertexPosition));
+
+            //Transformer normalvektoren til world-koordinater:
+            vec3 normal = normalize(uNormalMatrix * aVertexNormal);
+
+            //Beregn prikkprodukt av lysvektor og normalvektor for diffus belysning:
+            float diffusLightWeightning = max(dot(normal, vectorToLightSource), 0.0);
+
+            //Summer alle refleksjonskomponenter og send til fragmentshader:
+            vLightWeighting = uAmbientLightColor + (uDiffuseLightColor * diffusLightWeightning);
+
+            //send tekstur til fragmentshader
             vTextureCoordinate = aVertexTextureCoordinate;
-            vColor = aVertexColor;
-            gl_PointSize = 10.0;    //Merk: Kun i bruk når man tegner POINTS
+
+            //Transformer vertex:
+            gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition, 1.0);
         }
     </script>
     <script id="texture-fragment-shader" type="x-shader/x-fragment">
-        varying lowp vec4 vColor;
+        precision mediump float;
+        varying vec3 vLightWeighting;
         varying lowp vec2 vTextureCoordinate;
         uniform sampler2D uSampler;
         void main() {
-            gl_FragColor = texture2D(uSampler, vec2(vTextureCoordinate.s, vTextureCoordinate.t)) * vColor;
-            //gl_FragColor = texture2D(uSampler, vec2(vTextureCoordinate.s, vTextureCoordinate.t));
+            gl_FragColor = texture2D(uSampler, vec2(vTextureCoordinate.s, vTextureCoordinate.t)) *  vec4(vLightWeighting.rgb, 1.0) ;
         }
     </script>
-    <!-- SHADER for posisjon - uniform farge -->
+
+
+
+
+
+    <!-- SHADER som håndterer punktdiffust lys, posisjon og tekstur -->
     <script id="voxel-vertex-shader" type="x-shader/x-vertex">
         attribute vec3 aVertexPosition;
+        attribute vec3 aVertexNormal;    //Normalvektor.
+
+        uniform mat4 uModelMatrix;	   //model/world-matrisa brukes til lyskalk.
+        uniform mat3 uNormalMatrix;    //Transformerer normalvektoren vha. denne.
         uniform mat4 uModelViewMatrix;
         uniform mat4 uProjectionMatrix;
-        void main(void) {
+
+        uniform vec3 uLightPosition;    //Lysets posisjon.
+        uniform vec3 uAmbientLightColor;
+        uniform vec3 uDiffuseLightColor;
+
+        varying vec3 vLightWeighting;
+
+        void main() {
+            //Transformer til world-koordinater:
+            vec4 vertexPosition = uModelMatrix * vec4(aVertexPosition, 1.0);
+
+            //Beregn vektoren fra denne verteksen til lyskilden:
+            vec3 vectorToLightSource = normalize(uLightPosition - vec3(vertexPosition));
+
+            //Transformer normalvektoren til world-koordinater:
+            vec3 normal = normalize(uNormalMatrix * aVertexNormal);
+
+            //Beregn prikkprodukt av lysvektor og normalvektor for diffus belysning:
+            float diffusLightWeightning = max(dot(normal, vectorToLightSource), 0.0);
+
+            //Summer alle refleksjonskomponenter og send til fragmentshader:
+            vLightWeighting = uAmbientLightColor + (uDiffuseLightColor * diffusLightWeightning);
+
+
+            //Transformer vertex:
             gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition, 1.0);
-            gl_PointSize = 10.0;    //Merk: Kun i bruk når man tegner POINTS
         }
     </script>
     <script id="voxel-fragment-shader" type="x-shader/x-fragment">
         precision mediump float;
-        uniform lowp vec4 uFragmentColor;
-        void main(void) {
-            gl_FragColor = uFragmentColor;
-            
+        varying vec3 vLightWeighting;
+        void main() {
+            gl_FragColor = vec4(vLightWeighting.rgb, 0.7) ;
         }
     </script>
 
@@ -110,6 +166,7 @@
 	    import {main} from "./voxelPainter.js";
 	    main();
     </script>
+
 </body>
 
 </html>

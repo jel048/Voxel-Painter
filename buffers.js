@@ -60,11 +60,72 @@ export function initVoxelBuffer(gl) {
 		1,-1,-1,
 		1,-1,1,
 ]);
+	const normals =  [
+		//Forsiden:
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+
+		//Hoyre side:
+		1.0, 0.0, 0.0,
+		1.0, 0.0, 0.0,
+		1.0, 0.0, 0.0,
+
+		1.0, 0.0, 0.0,
+		1.0, 0.0, 0.0,
+		1.0, 0.0, 0.0,
+
+		//Baksiden:
+		0.0, 0.0, -1.0,
+		0.0, 0.0, -1.0,
+		0.0, 0.0, -1.0,
+
+		0.0, 0.0, -1.0,
+		0.0, 0.0, -1.0,
+		0.0, 0.0, -1.0,
+
+		//Venstre side:
+		-1.0, 0.0, 0.0,
+		-1.0, 0.0, 0.0,
+		-1.0, 0.0, 0.0,
+
+		-1.0, 0.0, 0.0,
+		-1.0, 0.0, 0.0,
+		-1.0, 0.0, 0.0,
+
+		//Topp
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+
+		//Bunn:
+		0.0, -1.0, 0.0,
+		0.0, -1.0, 0.0,
+		0.0, -1.0, 0.0,
+
+		0.0, -1.0, 0.0,
+		0.0, -1.0, 0.0,
+		0.0, -1.0, 0.0
+	];
 
 
 	const positionBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+
+	const normalBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 
@@ -88,6 +149,7 @@ export function initVoxelBuffer(gl) {
 
 	return  {
 		position: positionBuffer,
+		normal: normalBuffer,
         edges: edgeBuffer,
 		vertexCount: positions.length/3,
         edgeCount: edges.length
@@ -153,13 +215,62 @@ export function initPlayerTextureAndBuffers(gl, textureImage) {
 		1,-1,-1,
 		1,-1,1,
 	];
+	const normals =  [
+		//Forsiden:
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
 
-	let color = {red: 0.8, green: 0.8, blue: 1, alpha: 1.0}
-	let colors = [];
-	//Samme farge på alle sider:
-	for (let i = 0; i < 36; i++) {
-		colors.push(color.red, color.green, color.blue, color.alpha);
-	}
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+		0.0, 0.0, 1.0,
+
+		//Hoyre side:
+		1.0, 0.0, 0.0,
+		1.0, 0.0, 0.0,
+		1.0, 0.0, 0.0,
+
+		1.0, 0.0, 0.0,
+		1.0, 0.0, 0.0,
+		1.0, 0.0, 0.0,
+
+		//Baksiden:
+		0.0, 0.0, -1.0,
+		0.0, 0.0, -1.0,
+		0.0, 0.0, -1.0,
+
+		0.0, 0.0, -1.0,
+		0.0, 0.0, -1.0,
+		0.0, 0.0, -1.0,
+
+		//Venstre side:
+		-1.0, 0.0, 0.0,
+		-1.0, 0.0, 0.0,
+		-1.0, 0.0, 0.0,
+
+		-1.0, 0.0, 0.0,
+		-1.0, 0.0, 0.0,
+		-1.0, 0.0, 0.0,
+
+		//Topp
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+
+		//Bunn:
+		0.0, -1.0, 0.0,
+		0.0, -1.0, 0.0,
+		0.0, -1.0, 0.0,
+
+		0.0, -1.0, 0.0,
+		0.0, -1.0, 0.0,
+		0.0, -1.0, 0.0
+	];
+
 
 	let textureCoordinates = []
 	let tl=[0,0.5];
@@ -193,10 +304,11 @@ export function initPlayerTextureAndBuffers(gl, textureImage) {
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-	const colorBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+	const normalBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
 
 	//Texture:
 	const cubeTexture = gl.createTexture();
@@ -219,7 +331,7 @@ export function initPlayerTextureAndBuffers(gl, textureImage) {
 
 	return  {
 		position: positionBuffer,
-		color: colorBuffer,
+		normal: normalBuffer,
 		texture: textureBuffer,
 		textureObject: cubeTexture,
 		vertexCount: positions.length/3,
@@ -298,12 +410,50 @@ export function initSquareWireframeBuffer(gl) {
     
 ])
 
+	const colors = new Float32Array([
+
+        0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+		0, 0, 0, 1,
+
+    
+])
+	
+
 const positionBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		
+const colorBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+
+
+
 		return  {
 			position: positionBuffer,
+			colors: colorBuffer,
 			vertexCount: positions.length/3
 		};
 };
