@@ -39,6 +39,11 @@ export function main() {
 					lastTimeStamp: 0
 				},
 				floorSquares: [],
+				light: {
+					ambientLightColor: {r: 0.2, g: 0.2, b:0.2, a:1},  //ambient
+					lightPosition: {x: -5, y:9, z:10},				//diffuse
+					PlayerdiffuseLightColor: {r: 0.8, g: 0.1, b:0.2, a:1},
+				}
 			};
 
 			let i = 0;
@@ -146,14 +151,12 @@ function createVoxel(renderInfo){
         r = Math.random();
         g = Math.random();
         b = Math.random();
-        a = 0.4;
     } else {
         r = 0.5;
         g = 0.5;
         b = 0.5;
-        a = 0.4;
     }
-    renderInfo.voxels.push({xpos: x, ypos: y, zpos: z, r: r, g: g, b: b, a: a})
+    renderInfo.voxels.push({xpos: x, ypos: y, zpos: z, r: r, g: g, b: b})
 
 }
 /**
@@ -203,18 +206,24 @@ function initTextureShaders(gl) {
 		program: glslShader.shaderProgram,
 		attribLocations: {
 			vertexPosition: gl.getAttribLocation(glslShader.shaderProgram, 'aVertexPosition'),
-			vertexColor: gl.getAttribLocation(glslShader.shaderProgram, 'aVertexColor'),
 			vertexTextureCoordinate: gl.getAttribLocation(glslShader.shaderProgram, 'aVertexTextureCoordinate'),
+			vertexNormal: gl.getAttribLocation(glslShader.shaderProgram, 'aVertexNormal'),
 		},
 		uniformLocations: {
 			sampler: gl.getUniformLocation(glslShader.shaderProgram, 'uSampler'),
 			projectionMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uProjectionMatrix'),
 			modelViewMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uModelViewMatrix'),
+			modelMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uModelMatrix'),
+			normalMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uNormalMatrix'),
+
+			lightPosition: gl.getUniformLocation(glslShader.shaderProgram, 'uLightPosition'),
+			ambientLightColor: gl.getUniformLocation(glslShader.shaderProgram, 'uAmbientLightColor'),
+			diffuseLightColor: gl.getUniformLocation(glslShader.shaderProgram, 'uDiffuseLightColor'),
 		},
 	};
 }
 
-//Shaders uten vertexColor, men med uniformcolor
+
 function initVoxelShaders(gl) {
 	// Leser shaderkode fra HTML-fila: Standard/enkel shader (posisjon og farge):
 	let vertexShaderSource = document.getElementById('voxel-vertex-shader').innerHTML;
@@ -228,11 +237,17 @@ function initVoxelShaders(gl) {
 		program: glslShader.shaderProgram,
 		attribLocations: {
 			vertexPosition: gl.getAttribLocation(glslShader.shaderProgram, 'aVertexPosition'),
+			vertexNormal: gl.getAttribLocation(glslShader.shaderProgram, 'aVertexNormal'),
 		},
 		uniformLocations: {
-            fragmentColor: gl.getUniformLocation(glslShader.shaderProgram, 'uFragmentColor'),
 			projectionMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uProjectionMatrix'),
 			modelViewMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uModelViewMatrix'),
+			modelMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uModelMatrix'),
+			normalMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uNormalMatrix'),
+
+			lightPosition: gl.getUniformLocation(glslShader.shaderProgram, 'uLightPosition'),
+			ambientLightColor: gl.getUniformLocation(glslShader.shaderProgram, 'uAmbientLightColor'),
+			diffuseLightColor: gl.getUniformLocation(glslShader.shaderProgram, 'uDiffuseLightColor'),
 		},
 	};
 }
@@ -267,7 +282,7 @@ function distanceFromCamera(camera, x, y, z) {
  * Aktiverer position-bufferet.
  * Kalles fra draw()
  */
-function connectPositionAttribute(gl, baseShader, positionBuffer) {
+function connectPositionAttribute(gl, Shader, positionBuffer) {
 	const numComponents = 3;
 	const type = gl.FLOAT;
 	const normalize = false;
@@ -275,13 +290,13 @@ function connectPositionAttribute(gl, baseShader, positionBuffer) {
 	const offset = 0;
 	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 	gl.vertexAttribPointer(
-		baseShader.attribLocations.vertexPosition,
+		Shader.attribLocations.vertexPosition,
 		numComponents,
 		type,
 		normalize,
 		stride,
 		offset);
-	gl.enableVertexAttribArray(baseShader.attribLocations.vertexPosition);
+	gl.enableVertexAttribArray(Shader.attribLocations.vertexPosition);
 }
 function connectColorUniform(gl, ShaderInfo, colorRGBA) {
 	//let colorRGBA = [1.0, 1.0, 0.0, 1.0];
@@ -337,12 +352,40 @@ function connectColorAttribute(gl, baseShader, colorBuffer) {
 	gl.enableVertexAttribArray(baseShader.attribLocations.vertexColor);
 }
 
+function connectNormalAttribute(gl, shader, normalBuffer) {
+	const numComponents = 3;
+	const type = gl.FLOAT;
+	const normalize = false;
+	const stride = 0;
+	const offset = 0;
+	gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+	gl.vertexAttribPointer(
+		shader.attribLocations.vertexNormal,
+		numComponents,
+		type,
+		normalize,
+		stride,
+		offset);
+	gl.enableVertexAttribArray(shader.attribLocations.vertexNormal);
+}
+function connectAmbientUniform(gl, shader, color) {
+	gl.uniform3f(shader.uniformLocations.ambientLightColor, color.r,color.g,color.b);
+}
+
+function connectDiffuseUniform(gl, shader,color) {
+	gl.uniform3f(shader.uniformLocations.diffuseLightColor, color.r,color.g,color.b);
+}
+
+function connectLightPosition(gl, shader, position) {
+	gl.uniform3f(shader.uniformLocations.lightPosition, position.x,position.y,position.z);
+}
+
 /**
  * Klargjør canvaset.
  * Kalles fra draw()
  */
 function clearCanvas(gl) {
-	gl.clearColor(0.9, 0.9, 0.9, 1);  // Clear screen farge.
+	gl.clearColor(0.5, 0.5, 0.5, 1);  // Clear screen farge.
 	gl.clearDepth(1.0);
 	gl.enable(gl.DEPTH_TEST);           // Enable "depth testing".
 	gl.depthFunc(gl.LEQUAL);            // Nære objekter dekker fjerne objekter.
@@ -412,7 +455,7 @@ function draw(currentTime, renderInfo, camera) {
     modelMatrix.scale(1.1, 1.1, 1.1)
     drawPlayer(renderInfo, camera, modelMatrix);
    
-	//gjennomsiktige voxels
+	////gjennomsiktige voxels
 
 	renderInfo.gl.enable(renderInfo.gl.BLEND);
 	renderInfo.gl.blendFunc(renderInfo.gl.SRC_ALPHA, renderInfo.gl.ONE_MINUS_SRC_ALPHA);
@@ -428,11 +471,11 @@ function draw(currentTime, renderInfo, camera) {
 
 function drawFloor(renderInfo, camera){ 
 	// Aktiver shader:
-	renderInfo.gl.useProgram(renderInfo.voxelShader.program);
+	renderInfo.gl.useProgram(renderInfo.baseShader.program);
 
 	// Kople posisjon og farge-attributtene til tilhørende buffer:
-	connectPositionAttribute(renderInfo.gl, renderInfo.voxelShader, renderInfo.floorBuffers.position);
-	connectColorUniform(renderInfo.gl, renderInfo.voxelShader, [0, 0, 0, 0.1]);
+	connectPositionAttribute(renderInfo.gl, renderInfo.baseShader, renderInfo.floorBuffers.position);
+	connectColorAttribute(renderInfo.gl, renderInfo.baseShader, renderInfo.floorBuffers.colors)
 	
 
 
@@ -449,8 +492,8 @@ function drawFloor(renderInfo, camera){
 	let viewMatrix = new Matrix4(camera.viewMatrix);
 	let modelviewMatrix = viewMatrix.multiply(modelMatrix); // NB! rekkefølge!
 	// Send kameramatrisene til shaderen:
-	renderInfo.gl.uniformMatrix4fv(renderInfo.voxelShader.uniformLocations.modelViewMatrix, false, modelviewMatrix.elements);
-	renderInfo.gl.uniformMatrix4fv(renderInfo.voxelShader.uniformLocations.projectionMatrix, false, camera.projectionMatrix.elements);
+	renderInfo.gl.uniformMatrix4fv(renderInfo.baseShader.uniformLocations.modelViewMatrix, false, modelviewMatrix.elements);
+	renderInfo.gl.uniformMatrix4fv(renderInfo.baseShader.uniformLocations.projectionMatrix, false, camera.projectionMatrix.elements);
 
 	// tegn sidene
 	renderInfo.gl.drawArrays(renderInfo.gl.LINES, 0, renderInfo.floorBuffers.vertexCount);
@@ -483,27 +526,50 @@ function drawPlayer(renderInfo, camera, modelMatrix) {
 	// Aktiver shader:
 	renderInfo.gl.useProgram(renderInfo.textureShader.program);
 
-	// Kople posisjon og farge-attributtene til tilhørende buffer:
+	// Kople attributter til tilhørende buffer:
 	connectPositionAttribute(renderInfo.gl, renderInfo.textureShader, renderInfo.playerBuffers.position);
-	connectColorAttribute(renderInfo.gl, renderInfo.textureShader, renderInfo.playerBuffers.color);
-	connectTextureAttribute(renderInfo.gl, renderInfo.textureShader, renderInfo.playerBuffers.texture, renderInfo.playerBuffers.textureObject);
+	connectNormalAttribute(renderInfo.gl, renderInfo.textureShader, renderInfo.playerBuffers.normal);
+	connectAmbientUniform(renderInfo.gl, renderInfo.textureShader, renderInfo.light.ambientLightColor);
+	connectDiffuseUniform(renderInfo.gl, renderInfo.textureShader, renderInfo.light.PlayerdiffuseLightColor);
+	connectLightPosition(renderInfo.gl, renderInfo.textureShader, renderInfo.light.lightPosition);
 
+
+	connectTextureAttribute(renderInfo.gl, renderInfo.textureShader, renderInfo.playerBuffers.texture, renderInfo.playerBuffers.textureObject);
+	// Send MODELLmatrisa til shaderen:
+	renderInfo.gl.uniformMatrix4fv(renderInfo.textureShader.uniformLocations.modelMatrix, false, modelMatrix.elements);
 	// Lager en kopi for å ikke påvirke kameramatrisene:
 	let viewMatrix = new Matrix4(camera.viewMatrix);
 	let modelviewMatrix = viewMatrix.multiply(modelMatrix); // NB! rekkefølge!
 	renderInfo.gl.uniformMatrix4fv(renderInfo.textureShader.uniformLocations.modelViewMatrix, false, modelviewMatrix.elements);
 	renderInfo.gl.uniformMatrix4fv(renderInfo.textureShader.uniformLocations.projectionMatrix, false, camera.projectionMatrix.elements);
 
+	// Beregner og sender inn matrisa som brukes til å transformere normalvektorene:
+	let normalMatrix = mat3.create();
+	mat3.normalFromMat4(normalMatrix, modelMatrix.elements);  //NB!!! mat3.normalFromMat4! SE: gl-matrix.js
+	// Send normalmatrisa til shaderen (merk: 3x3):
+	renderInfo.gl.uniformMatrix3fv(renderInfo.textureShader.uniformLocations.normalMatrix, false, normalMatrix);
+
+
+
 	renderInfo.gl.drawArrays(renderInfo.gl.TRIANGLES, 0, renderInfo.playerBuffers.vertexCount);
 }
 
-function drawVoxel(renderInfo, camera, colorRGBA, modelMatrix) {
+function drawVoxel(renderInfo, camera, colorRGB, modelMatrix) {
+
 	// Aktiver shader:
 	renderInfo.gl.useProgram(renderInfo.voxelShader.program);
 
 	// Kople posisjon og farge-attributtene til tilhørende buffer:
 	connectPositionAttribute(renderInfo.gl, renderInfo.voxelShader, renderInfo.voxelBuffers.position);
+	connectNormalAttribute(renderInfo.gl, renderInfo.voxelShader, renderInfo.voxelBuffers.normal);
+	connectAmbientUniform(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.ambientLightColor);
+	connectLightPosition(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.lightPosition);
     
+	// Beregner og sender inn matrisa som brukes til å transformere normalvektorene:
+	let normalMatrix = mat3.create();
+	mat3.normalFromMat4(normalMatrix, modelMatrix.elements);  //NB!!! mat3.normalFromMat4! SE: gl-matrix.js
+	// Send normalmatrisa til shaderen (merk: 3x3):
+	renderInfo.gl.uniformMatrix3fv(renderInfo.voxelShader.uniformLocations.normalMatrix, false, normalMatrix);
 
 
 	// Lager en kopi for å ikke påvirke kameramatrisene:
@@ -512,14 +578,16 @@ function drawVoxel(renderInfo, camera, colorRGBA, modelMatrix) {
 	renderInfo.gl.uniformMatrix4fv(renderInfo.voxelShader.uniformLocations.modelViewMatrix, false, modelviewMatrix.elements);
 	renderInfo.gl.uniformMatrix4fv(renderInfo.voxelShader.uniformLocations.projectionMatrix, false, camera.projectionMatrix.elements);
 
+	//Fargen til rammen:
+	connectDiffuseUniform(renderInfo.gl, renderInfo.voxelShader, {r: 0, g: 0, b: 0});
     //tegner rammen
-    connectColorUniform(renderInfo.gl, renderInfo.voxelShader, [0, 0, 0, 1]);
     renderInfo.gl.bindBuffer(renderInfo.gl.ELEMENT_ARRAY_BUFFER, renderInfo.voxelBuffers.edges);
 	renderInfo.gl.drawElements(renderInfo.gl.LINES, renderInfo.voxelBuffers.edgeCount, renderInfo.gl.UNSIGNED_SHORT, 0);
 	renderInfo.gl.bindBuffer(renderInfo.gl.ELEMENT_ARRAY_BUFFER, null);
 
+	//Farge til resten av kuben
+	connectDiffuseUniform(renderInfo.gl, renderInfo.voxelShader, colorRGB);
 
-    connectColorUniform(renderInfo.gl, renderInfo.voxelShader, colorRGBA);
 	//Bruker culling for korrekt blending:
 	renderInfo.gl.frontFace(renderInfo.gl.CCW);     // Angir vertekser CCW.
 	renderInfo.gl.enable(renderInfo.gl.CULL_FACE);  // Aktiverer culling
@@ -548,7 +616,7 @@ function drawVoxels(renderInfo, camera){
         let voxel = voxToDraw[i].voxel;
         modelMatrix.setIdentity();
         modelMatrix.translate(voxel.xpos, voxel.ypos, voxel.zpos)
-        drawVoxel(renderInfo, camera, [voxel.r, voxel.g, voxel.b, voxel.a], modelMatrix)
+        drawVoxel(renderInfo, camera, {r: voxel.r, g: voxel.g, b: voxel.b}, modelMatrix)
     }
 
 
