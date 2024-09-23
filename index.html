@@ -60,7 +60,7 @@
     </script>
 
 
-    <!-- SHADER som håndterer punktdiffust lys, posisjon og tekstur -->
+    <!-- SHADER for ambient, diffuse og tekstur - Playercube -->
     <script id="texture-vertex-shader" type="x-shader/x-vertex">
         attribute vec3 aVertexPosition;
         attribute vec3 aVertexNormal;    //Normalvektor.
@@ -72,11 +72,11 @@
         uniform mat4 uProjectionMatrix;
 
         uniform vec3 uLightPosition;    //Lysets posisjon.
-        uniform vec3 uAmbientLightColor;
-        uniform vec3 uDiffuseLightColor;
+        uniform vec4 uAmbientLightColor;
+        uniform vec4 uDiffuseLightColor;
 
         varying lowp vec2 vTextureCoordinate;
-        varying vec3 vLightWeighting;
+        varying vec4 vLightWeighting;
 
         void main() {
             //Transformer til world-koordinater:
@@ -103,11 +103,11 @@
     </script>
     <script id="texture-fragment-shader" type="x-shader/x-fragment">
         precision mediump float;
-        varying vec3 vLightWeighting;
+        varying vec4 vLightWeighting;
         varying lowp vec2 vTextureCoordinate;
         uniform sampler2D uSampler;
         void main() {
-            gl_FragColor = texture2D(uSampler, vec2(vTextureCoordinate.s, vTextureCoordinate.t)) *  vec4(vLightWeighting.rgb, 1.0) ;
+            gl_FragColor = texture2D(uSampler, vec2(vTextureCoordinate.s, vTextureCoordinate.t)) * vLightWeighting ;
         }
     </script>
 
@@ -115,7 +115,7 @@
 
 
 
-    <!-- SHADER som håndterer punktdiffust lys, posisjon og tekstur -->
+    <!-- SHADER for specular, diffus og ambient - voxel -->
     <script id="voxel-vertex-shader" type="x-shader/x-vertex">
         attribute vec3 aVertexPosition;
         attribute vec3 aVertexNormal;    //Normalvektor.
@@ -125,11 +125,17 @@
         uniform mat4 uModelViewMatrix;
         uniform mat4 uProjectionMatrix;
 
+        uniform vec3 uCameraPosition; //==> Kameraets posisjon.
         uniform vec3 uLightPosition;    //Lysets posisjon.
-        uniform vec3 uAmbientLightColor;
-        uniform vec3 uDiffuseLightColor;
 
-        varying vec3 vLightWeighting;
+        uniform vec4 uAmbientLightColor;
+        uniform vec4 uDiffuseLightColor;
+        uniform vec4 uSpecularLightColor;
+
+        uniform float uShininess;
+        uniform float uIntensity;
+
+        varying vec4 vLightWeighting;
 
         void main() {
             //Transformer til world-koordinater:
@@ -137,6 +143,7 @@
 
             //Beregn vektoren fra denne verteksen til lyskilden:
             vec3 vectorToLightSource = normalize(uLightPosition - vec3(vertexPosition));
+            vec3 viewDirection = normalize(uCameraPosition - vec3(vertexPosition));
 
             //Transformer normalvektoren til world-koordinater:
             vec3 normal = normalize(uNormalMatrix * aVertexNormal);
@@ -144,8 +151,18 @@
             //Beregn prikkprodukt av lysvektor og normalvektor for diffus belysning:
             float diffusLightWeightning = max(dot(normal, vectorToLightSource), 0.0);
 
+            vec4 specularReflection;
+            if (dot(normal, vectorToLightSource) < 0.0) {
+                // Lyskilden er på feil side?
+                specularReflection = vec4(0.0, 0.0, 0.0, 0.0);// Ingen specular refleksjon.
+            } else {
+                vec3 reflectedVector = normalize(reflect(-vectorToLightSource, normal));
+                float cosAngle = max(0.0, dot(reflectedVector, viewDirection));
+                specularReflection = uIntensity * uSpecularLightColor *  pow(cosAngle, uShininess);
+            }
+
             //Summer alle refleksjonskomponenter og send til fragmentshader:
-            vLightWeighting = uAmbientLightColor + (uDiffuseLightColor * diffusLightWeightning);
+            vLightWeighting = uAmbientLightColor + specularReflection + (uDiffuseLightColor * diffusLightWeightning);
 
 
             //Transformer vertex:
@@ -154,7 +171,7 @@
     </script>
     <script id="voxel-fragment-shader" type="x-shader/x-fragment">
         precision mediump float;
-        varying vec3 vLightWeighting;
+        varying vec4 vLightWeighting;
         void main() {
             gl_FragColor = vec4(vLightWeighting.rgb, 0.7) ;
         }

@@ -113,7 +113,7 @@ export function initVoxelBuffer(gl) {
 
 		0.0, -1.0, 0.0,
 		0.0, -1.0, 0.0,
-		0.0, -1.0, 0.0
+		0.0, -1.0, 0.0,
 	];
 
 
@@ -294,6 +294,13 @@ export function initPlayerTextureAndBuffers(gl, textureImage) {
     bl, tr, br, bl, tl, tr
     );
 
+	let colors = [];
+	for (let i = 0; i<36; i++){
+		colors.push(0.9, 0.9, 0.0, 1)
+	}
+
+
+
     
 	
 
@@ -309,6 +316,10 @@ export function initPlayerTextureAndBuffers(gl, textureImage) {
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
+	const colorBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
 	//Texture:
 	const cubeTexture = gl.createTexture();
@@ -332,6 +343,7 @@ export function initPlayerTextureAndBuffers(gl, textureImage) {
 	return  {
 		position: positionBuffer,
 		normal: normalBuffer,
+		color: colorBuffer,
 		texture: textureBuffer,
 		textureObject: cubeTexture,
 		vertexCount: positions.length/3,
