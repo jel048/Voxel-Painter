@@ -146,12 +146,12 @@ function createVoxel(renderInfo){
         r = Math.random();
         g = Math.random();
         b = Math.random();
-        a = 0.7;
+        a = 0.4;
     } else {
         r = 0.5;
         g = 0.5;
         b = 0.5;
-        a = 0.7;
+        a = 0.4;
     }
     renderInfo.voxels.push({xpos: x, ypos: y, zpos: z, r: r, g: g, b: b, a: a})
 
@@ -237,6 +237,26 @@ function initVoxelShaders(gl) {
 	};
 }
 
+/**
+ * Funksjonen sammenlikner to nærliggende verdier i arrayet som sorteres.
+ * Returnerer 1, -1 eller 0 avhengig av sammenlikningen.
+ */
+function compare( dist1, dist2 ) {
+	if (dist1 < dist2 ){
+		return 1;
+	}
+	if ( dist1 > dist2 ){
+		return -1;
+	}
+	return 0;
+}
+
+/**
+ * Merk: ** betyr eksponent. Eks. 2 ** 3 = 2 * 2 * 2 = 8
+ */
+function distanceFromCamera(camera, x, y, z) {
+	return Math.sqrt((camera.camPosX - x) ** 2 + (camera.camPosY - y) ** 2 + (camera.camPosZ - z) ** 2);
+}
 
 
 
@@ -379,15 +399,12 @@ function calculateFps(currentTime, fpsInfo) {
  */
 function draw(currentTime, renderInfo, camera) {
 	clearCanvas(renderInfo.gl);
-    renderInfo.gl.enable(renderInfo.gl.BLEND);
-	renderInfo.gl.blendEquation(renderInfo.gl.FUNC_ADD);
-	renderInfo.gl.blendFunc(renderInfo.gl.ONE, renderInfo.gl.ONE_MINUS_SRC_ALPHA);
+	drawCoord(renderInfo, camera);
 
     //** TEGN ALLE UGJENNOMSIKTIGE OBJEKTER FØRST:
-	// ** Slår PÅ depthMask:
-	//renderInfo.gl.depthMask(true);
+	renderInfo.gl.disable(renderInfo.gl.BLEND);
 	drawFloor(renderInfo, camera);
-	drawCoord(renderInfo, camera);
+	
 
     let modelMatrix = new Matrix4();
     modelMatrix.setIdentity();
@@ -395,18 +412,18 @@ function draw(currentTime, renderInfo, camera) {
     modelMatrix.scale(1.1, 1.1, 1.1)
     drawPlayer(renderInfo, camera, modelMatrix);
    
-    modelMatrix.setIdentity();
-    //** Slår AV depthMask (endrer dermed ikke DEPTH-BUFFER):
-	//renderInfo.gl.depthMask(false);
+	//gjennomsiktige voxels
 
-    for (let i = 0; i < renderInfo.voxels.length; i++){
-        let voxel = renderInfo.voxels[i];
-        modelMatrix.setIdentity();
-        modelMatrix.translate(voxel.xpos, voxel.ypos, voxel.zpos)
-        drawVoxel(renderInfo, camera, [voxel.r, voxel.g, voxel.b, voxel.a], modelMatrix)
-    }
-
+	renderInfo.gl.enable(renderInfo.gl.BLEND);
+	renderInfo.gl.blendFunc(renderInfo.gl.SRC_ALPHA, renderInfo.gl.ONE_MINUS_SRC_ALPHA);
+    //** Slår av depthMask:
+	renderInfo.gl.depthMask(false);
+	drawVoxels(renderInfo, camera)
+    
+	//slå på depthmask igjen
+	renderInfo.gl.depthMask(true);
 }
+
 
 
 function drawFloor(renderInfo, camera){ 
@@ -514,5 +531,25 @@ function drawVoxel(renderInfo, camera, colorRGBA, modelMatrix) {
 	//Tegner deretter forsidene:
 	renderInfo.gl.cullFace(renderInfo.gl.BACK);     // Skjuler baksider.
 	renderInfo.gl.drawArrays(renderInfo.gl.TRIANGLES, 0, renderInfo.voxelBuffers.vertexCount)
+
+}
+
+function drawVoxels(renderInfo, camera){
+	let modelMatrix = new Matrix4();
+
+	let voxToDraw = [];
+	for (let i = 0; i < renderInfo.voxels.length; i++){
+		let dist = distanceFromCamera(camera, renderInfo.voxels[i].xpos, renderInfo.voxels[i].ypos, renderInfo.voxels[i].zpos);
+		voxToDraw.push({voxel: renderInfo.voxels[i], distance: dist})
+	}
+	voxToDraw.sort((distFromCam1, distFromCam2) => compare(distFromCam1.distance, distFromCam2.distance));
+
+	for (let i = 0; i < voxToDraw.length; i++){
+        let voxel = voxToDraw[i].voxel;
+        modelMatrix.setIdentity();
+        modelMatrix.translate(voxel.xpos, voxel.ypos, voxel.zpos)
+        drawVoxel(renderInfo, camera, [voxel.r, voxel.g, voxel.b, voxel.a], modelMatrix)
+    }
+
 
 }
