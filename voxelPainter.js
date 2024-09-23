@@ -41,8 +41,11 @@ export function main() {
 				floorSquares: [],
 				light: {
 					ambientLightColor: {r: 0.2, g: 0.2, b:0.2, a:1},  //ambient
-					lightPosition: {x: -5, y:9, z:10},				//diffuse
-					PlayerdiffuseLightColor: {r: 0.8, g: 0.1, b:0.2, a:1},
+					lightPosition: {x: -5.0, y:3.0, z:-8.0},				//diffuse
+					PlayerdiffuseLightColor: {r: 0.8, g: 0.5, b:0.5, a:1},
+					specularLightColor: {r: 1, g: 1, b: 1, a: 1},
+					shininess: 12,
+					intensity: 2,
 				}
 			};
 
@@ -151,10 +154,12 @@ function createVoxel(renderInfo){
         r = Math.random();
         g = Math.random();
         b = Math.random();
+		a = 0.7
     } else {
         r = 0.5;
         g = 0.5;
         b = 0.5;
+		a = 0.7;
     }
     renderInfo.voxels.push({xpos: x, ypos: y, zpos: z, r: r, g: g, b: b})
 
@@ -246,8 +251,14 @@ function initVoxelShaders(gl) {
 			normalMatrix: gl.getUniformLocation(glslShader.shaderProgram, 'uNormalMatrix'),
 
 			lightPosition: gl.getUniformLocation(glslShader.shaderProgram, 'uLightPosition'),
+			cameraPosition: gl.getUniformLocation(glslShader.shaderProgram, 'uCameraPosition'),
 			ambientLightColor: gl.getUniformLocation(glslShader.shaderProgram, 'uAmbientLightColor'),
 			diffuseLightColor: gl.getUniformLocation(glslShader.shaderProgram, 'uDiffuseLightColor'),
+
+			specularLightColor: gl.getUniformLocation(glslShader.shaderProgram, 'uSpecularLightColor'),
+
+			shininess: gl.getUniformLocation(glslShader.shaderProgram, 'uShininess'),
+			intensity: gl.getUniformLocation(glslShader.shaderProgram, 'uIntensity'),
 		},
 	};
 }
@@ -369,16 +380,33 @@ function connectNormalAttribute(gl, shader, normalBuffer) {
 	gl.enableVertexAttribArray(shader.attribLocations.vertexNormal);
 }
 function connectAmbientUniform(gl, shader, color) {
-	gl.uniform3f(shader.uniformLocations.ambientLightColor, color.r,color.g,color.b);
+	gl.uniform4f(shader.uniformLocations.ambientLightColor, color.r,color.g,color.b, color.a);
 }
 
 function connectDiffuseUniform(gl, shader,color) {
-	gl.uniform3f(shader.uniformLocations.diffuseLightColor, color.r,color.g,color.b);
+	gl.uniform4f(shader.uniformLocations.diffuseLightColor, color.r,color.g,color.b, color.a);
+}
+
+function connectSpecular(gl, shader,color) {
+	gl.uniform4f(shader.uniformLocations.specularLightColor, color.r,color.g,color.b, color.a);
 }
 
 function connectLightPosition(gl, shader, position) {
 	gl.uniform3f(shader.uniformLocations.lightPosition, position.x,position.y,position.z);
 }
+
+function connectCameraPosition(gl, shader, camera) {
+	gl.uniform3f(shader.uniformLocations.cameraPosition, camera.camPosX, camera.camPosY, camera.camPosZ);
+}
+
+function connectShininessUniform(gl, shader, value) {
+	gl.uniform1f(shader.uniformLocations.shininess, value);
+}
+
+function connectIntensityUniform(gl, shader, value) {
+	gl.uniform1f(shader.uniformLocations.intensity, value);
+}
+
 
 /**
  * Klargjør canvaset.
@@ -442,11 +470,13 @@ function calculateFps(currentTime, fpsInfo) {
  */
 function draw(currentTime, renderInfo, camera) {
 	clearCanvas(renderInfo.gl);
-	drawCoord(renderInfo, camera);
+	
 
     //** TEGN ALLE UGJENNOMSIKTIGE OBJEKTER FØRST:
 	renderInfo.gl.disable(renderInfo.gl.BLEND);
 	drawFloor(renderInfo, camera);
+	drawCoord(renderInfo, camera);
+	drawLightSource(renderInfo, camera);
 	
 
     let modelMatrix = new Matrix4();
@@ -564,6 +594,15 @@ function drawVoxel(renderInfo, camera, colorRGB, modelMatrix) {
 	connectNormalAttribute(renderInfo.gl, renderInfo.voxelShader, renderInfo.voxelBuffers.normal);
 	connectAmbientUniform(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.ambientLightColor);
 	connectLightPosition(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.lightPosition);
+	connectSpecular(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.specularLightColor);
+	connectCameraPosition(renderInfo.gl, renderInfo.voxelShader, camera);
+
+	connectShininessUniform(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.shininess);
+	connectIntensityUniform(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.intensity);
+
+
+	// Send MODELLmatrisa til shaderen:
+	renderInfo.gl.uniformMatrix4fv(renderInfo.voxelShader.uniformLocations.modelMatrix, false, modelMatrix.elements);
     
 	// Beregner og sender inn matrisa som brukes til å transformere normalvektorene:
 	let normalMatrix = mat3.create();
@@ -579,7 +618,7 @@ function drawVoxel(renderInfo, camera, colorRGB, modelMatrix) {
 	renderInfo.gl.uniformMatrix4fv(renderInfo.voxelShader.uniformLocations.projectionMatrix, false, camera.projectionMatrix.elements);
 
 	//Fargen til rammen:
-	connectDiffuseUniform(renderInfo.gl, renderInfo.voxelShader, {r: 0, g: 0, b: 0});
+	connectDiffuseUniform(renderInfo.gl, renderInfo.voxelShader, {r: 0, g: 0, b: 0, a: 1});
     //tegner rammen
     renderInfo.gl.bindBuffer(renderInfo.gl.ELEMENT_ARRAY_BUFFER, renderInfo.voxelBuffers.edges);
 	renderInfo.gl.drawElements(renderInfo.gl.LINES, renderInfo.voxelBuffers.edgeCount, renderInfo.gl.UNSIGNED_SHORT, 0);
@@ -616,8 +655,32 @@ function drawVoxels(renderInfo, camera){
         let voxel = voxToDraw[i].voxel;
         modelMatrix.setIdentity();
         modelMatrix.translate(voxel.xpos, voxel.ypos, voxel.zpos)
-        drawVoxel(renderInfo, camera, {r: voxel.r, g: voxel.g, b: voxel.b}, modelMatrix)
+        drawVoxel(renderInfo, camera, {r: voxel.r, g: voxel.g, b: voxel.b, a: voxel.a}, modelMatrix)
     }
 
 
+}
+
+
+function drawLightSource(renderInfo, camera) {
+	// Aktiver shader:
+	renderInfo.gl.useProgram(renderInfo.baseShader.program);
+	let modelMatrix = new Matrix4();
+	modelMatrix.setIdentity();
+	modelMatrix.translate(renderInfo.light.lightPosition.x, renderInfo.light.lightPosition.y, renderInfo.light.lightPosition.z);
+	modelMatrix.scale(0.3, 0.3, 0.3);
+	
+
+	// Kople attributter til tilhørende buffer:
+	connectPositionAttribute(renderInfo.gl, renderInfo.baseShader, renderInfo.playerBuffers.position);
+	connectColorAttribute(renderInfo.gl, renderInfo.baseShader, renderInfo.playerBuffers.color)
+
+	// Lager en kopi for å ikke påvirke kameramatrisene:
+	let viewMatrix = new Matrix4(camera.viewMatrix);
+	let modelviewMatrix = viewMatrix.multiply(modelMatrix); // NB! rekkefølge!
+	renderInfo.gl.uniformMatrix4fv(renderInfo.baseShader.uniformLocations.modelViewMatrix, false, modelviewMatrix.elements);
+	renderInfo.gl.uniformMatrix4fv(renderInfo.baseShader.uniformLocations.projectionMatrix, false, camera.projectionMatrix.elements);
+
+	
+	renderInfo.gl.drawArrays(renderInfo.gl.TRIANGLES, 0, renderInfo.playerBuffers.vertexCount);
 }
