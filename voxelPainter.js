@@ -41,10 +41,10 @@ export function main() {
 				floorSquares: [],
 				light: {
 					ambientLightColor: {r: 0.2, g: 0.2, b:0.2, a:1},  //ambient
-					lightPosition: {x: -5.0, y:3.0, z:-8.0},				//diffuse
-					PlayerdiffuseLightColor: {r: 0.8, g: 0.5, b:0.5, a:1},
+					lightPosition: {x: -6.0, y:3.0, z:-8.0},				
+					PlayerdiffuseLightColor: {r: 0.8, g: 0.5, b:0.5, a:1}, //diffuse
 					specularLightColor: {r: 1, g: 1, b: 1, a: 1},
-					shininess: 12,
+					shininess: 32,
 					intensity: 2,
 				}
 			};
