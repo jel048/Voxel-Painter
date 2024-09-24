@@ -42,10 +42,10 @@ export function main() {
 				light: {
 					ambientLightColor: {r: 0.2, g: 0.2, b:0.2, a:1},  //ambient
 					lightPosition: {x: -6.0, y:3.0, z:-8.0},				
-					PlayerdiffuseLightColor: {r: 0.8, g: 0.5, b:0.5, a:1}, //diffuse
+					diffuseLightColor: {r: 1, g: 1, b:1, a:1}, //diffuse
 					specularLightColor: {r: 1, g: 1, b: 1, a: 1},
-					shininess: 32,
-					intensity: 2,
+					shininess: 36,
+					intensity: 1,
 				}
 			};
 
@@ -556,11 +556,15 @@ function drawPlayer(renderInfo, camera, modelMatrix) {
 	// Aktiver shader:
 	renderInfo.gl.useProgram(renderInfo.textureShader.program);
 
+	let color = {r: 0.8, g: 0.5, b: 0.5, a: 1}
+	let ambient = {r: color.r * renderInfo.light.ambientLightColor.r, g: color.g * renderInfo.light.ambientLightColor.g, b: color.b * renderInfo.light.ambientLightColor.b, a: color.a * renderInfo.light.ambientLightColor.a }
+	let diffuse = {r: color.r * renderInfo.light.diffuseLightColor.r, g: color.g * renderInfo.light.diffuseLightColor.g, b: color.b * renderInfo.light.diffuseLightColor.b, a: color.a * renderInfo.light.diffuseLightColor.a,}
+
 	// Kople attributter til tilhørende buffer:
 	connectPositionAttribute(renderInfo.gl, renderInfo.textureShader, renderInfo.playerBuffers.position);
 	connectNormalAttribute(renderInfo.gl, renderInfo.textureShader, renderInfo.playerBuffers.normal);
-	connectAmbientUniform(renderInfo.gl, renderInfo.textureShader, renderInfo.light.ambientLightColor);
-	connectDiffuseUniform(renderInfo.gl, renderInfo.textureShader, renderInfo.light.PlayerdiffuseLightColor);
+	connectAmbientUniform(renderInfo.gl, renderInfo.textureShader, ambient);
+	connectDiffuseUniform(renderInfo.gl, renderInfo.textureShader, diffuse);
 	connectLightPosition(renderInfo.gl, renderInfo.textureShader, renderInfo.light.lightPosition);
 
 
@@ -586,19 +590,24 @@ function drawPlayer(renderInfo, camera, modelMatrix) {
 
 function drawVoxel(renderInfo, camera, colorRGB, modelMatrix) {
 
+	let ambient = {r: colorRGB.r * renderInfo.light.ambientLightColor.r, g: colorRGB.g * renderInfo.light.ambientLightColor.g, b: colorRGB.b * renderInfo.light.ambientLightColor.b, a: colorRGB.a * renderInfo.light.ambientLightColor.a }
+	let diffuse = {r: colorRGB.r * renderInfo.light.diffuseLightColor.r, g: colorRGB.g * renderInfo.light.diffuseLightColor.g, b: colorRGB.b * renderInfo.light.diffuseLightColor.b, a: colorRGB.a * renderInfo.light.diffuseLightColor.a }
+
 	// Aktiver shader:
 	renderInfo.gl.useProgram(renderInfo.voxelShader.program);
 
 	// Kople posisjon og farge-attributtene til tilhørende buffer:
 	connectPositionAttribute(renderInfo.gl, renderInfo.voxelShader, renderInfo.voxelBuffers.position);
 	connectNormalAttribute(renderInfo.gl, renderInfo.voxelShader, renderInfo.voxelBuffers.normal);
-	connectAmbientUniform(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.ambientLightColor);
+	connectAmbientUniform(renderInfo.gl, renderInfo.voxelShader, ambient);
 	connectLightPosition(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.lightPosition);
 	connectSpecular(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.specularLightColor);
 	connectCameraPosition(renderInfo.gl, renderInfo.voxelShader, camera);
 
 	connectShininessUniform(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.shininess);
 	connectIntensityUniform(renderInfo.gl, renderInfo.voxelShader, renderInfo.light.intensity);
+
+	
 
 
 	// Send MODELLmatrisa til shaderen:
@@ -625,7 +634,7 @@ function drawVoxel(renderInfo, camera, colorRGB, modelMatrix) {
 	renderInfo.gl.bindBuffer(renderInfo.gl.ELEMENT_ARRAY_BUFFER, null);
 
 	//Farge til resten av kuben
-	connectDiffuseUniform(renderInfo.gl, renderInfo.voxelShader, colorRGB);
+	connectDiffuseUniform(renderInfo.gl, renderInfo.voxelShader, diffuse);
 
 	//Bruker culling for korrekt blending:
 	renderInfo.gl.frontFace(renderInfo.gl.CCW);     // Angir vertekser CCW.
